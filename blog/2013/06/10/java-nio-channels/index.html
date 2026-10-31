@@ -1,0 +1,246 @@
+
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Java NIO系列教程（二） Channel - Wuyexiong de Blog</title>
+	<meta name="author" content="Wuyexiong">
+
+	
+	<meta name="description" content="本文为转载 感谢并发编程网
+译文原文地址:http://ifeve.com/channels/
+英文原文地址:http://tutorials.jenkov.com/java-nio/channels.html 作者：Jakob Jenkov 译者：airu 校对：丁一 Java &hellip;">
+	
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<link href="/atom.xml" rel="alternate" title="Wuyexiong de Blog" type="application/atom+xml">
+	<link rel="canonical" href="">
+	<link href="/favicon.png" rel="shortcut icon">
+	<link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+	<!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+	<script async="true" src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+	
+</head>
+
+
+<body>
+	<header id="header" class="inner"><h1><a href="/blog/">Wuyexiong de Blog</a></h1>
+<nav id="main-nav"><ul class="main">
+	<li><a href="/blog/">Blog</a></li>
+	<li><a href="/blog/archives">Archives</a></li>
+	<li><a href="/">简历</a></li>
+</ul>
+</nav>
+<nav id="mobile-nav">
+	<div class="alignleft menu">
+		<a class="button">Menu</a>
+		<div class="container"><ul class="main">
+	<li><a href="/blog/">Blog</a></li>
+	<li><a href="/blog/archives">Archives</a></li>
+	<li><a href="/">简历</a></li>
+</ul>
+</div>
+	</div>
+	<div class="alignright search">
+		<a class="button"></a>
+		<div class="container">
+			<form action="http://google.com/search" method="get">
+				<input type="text" name="q" results="0">
+				<input type="hidden" name="q" value="site:wuyexiong.github.io">
+			</form>
+		</div>
+	</div>
+</nav>
+<nav id="sub-nav" class="alignright">
+	<div class="social">
+		
+		
+		
+		<a class="twitter" href="http://twitter.com/wuyexiong" title="Twitter">Twitter</a>
+		
+		
+		<a class="github" href="https://github.com/wuyexiong" title="GitHub">GitHub</a>
+		
+    
+		
+		
+		
+		
+		
+		<a class="rss" href="/atom.xml" title="RSS">RSS</a>
+		
+    
+	</div>
+	<form class="search" action="http://google.com/search" method="get">
+		<input class="alignright" type="text" name="q" results="0">
+		<input type="hidden" name="q" value="site:wuyexiong.github.io">
+	</form>
+</nav>
+
+</header>
+	
+		
+	
+	<div id="content" class="inner"><article class="post">
+	<h2 class="title">Java NIO系列教程（二） Channel</h2>
+	<div class="entry-content"><p>本文为转载 感谢并发编程网<br />
+译文原文地址:<a href="http://ifeve.com/channels/">http://ifeve.com/channels/</a><br />
+英文原文地址:<a href="http://tutorials.jenkov.com/java-nio/channels.html">http://tutorials.jenkov.com/java-nio/channels.html</a>  </p>
+
+<pre><code> 作者：Jakob Jenkov     译者：airu     校对：丁一
+</code></pre>
+
+<p>Java NIO的通道类似流，但又有些不同：</p>
+
+<p>既可以从通道中读取数据，又可以写数据到通道。但流的读写通常是单向的。
+通道可以异步地读写。
+通道中的数据总是要先读到一个Buffer，或者总是要从一个Buffer中写入。
+正如上面所说，从通道读取数据到缓冲区，从缓冲区写入数据到通道。如下图所示：</p>
+
+<p><img src="/images/java-nio-imgs/overview-channels-buffers.png" alt="" /></p>
+
+<!-- more -->
+
+<p><strong>Channel的实现</strong></p>
+
+<p>这些是Java NIO中最重要的通道的实现：</p>
+
+<ul>
+  <li>FileChannel</li>
+  <li>DatagramChannel</li>
+  <li>SocketChannel</li>
+  <li>ServerSocketChannel</li>
+</ul>
+
+<p>FileChannel 从文件中读写数据。</p>
+
+<p>DatagramChannel 能通过UDP读写网络中的数据。</p>
+
+<p>SocketChannel 能通过TCP读写网络中的数据。</p>
+
+<p>ServerSocketChannel可以监听新进来的TCP连接，像Web服务器那样。对每一个新进来的连接都会创建一个SocketChannel。</p>
+
+<p><strong>基本的 Channel 示例</strong></p>
+
+<p>下面是一个使用FileChannel读取数据到Buffer中的示例：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+</pre></td><td class="code"><pre><code class="java"><span class="line"><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span>
+</span><span class="line">	<span class="o">{</span>
+</span><span class="line">		<span class="n">RandomAccessFile</span> <span class="n">aFile</span> <span class="o">=</span> <span class="k">new</span> <span class="n">RandomAccessFile</span><span class="o">(</span><span class="s">&quot;data/nio-data.txt&quot;</span><span class="o">,</span> <span class="s">&quot;rw&quot;</span><span class="o">);</span>
+</span><span class="line">		<span class="n">FileChannel</span> <span class="n">inChannel</span> <span class="o">=</span> <span class="n">aFile</span><span class="o">.</span><span class="na">getChannel</span><span class="o">();</span>
+</span><span class="line">		<span class="n">ByteBuffer</span> <span class="n">buf</span> <span class="o">=</span> <span class="n">ByteBuffer</span><span class="o">.</span><span class="na">allocate</span><span class="o">(</span><span class="mi">48</span><span class="o">);</span>
+</span><span class="line">		
+</span><span class="line">		<span class="kt">int</span> <span class="n">bytesRead</span> <span class="o">=</span> <span class="n">inChannel</span><span class="o">.</span><span class="na">read</span><span class="o">(</span><span class="n">buf</span><span class="o">);</span>
+</span><span class="line">		<span class="k">while</span><span class="o">(</span><span class="n">bytesRead</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="o">)</span>
+</span><span class="line">		<span class="o">{</span>
+</span><span class="line">			<span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;Read &quot;</span> <span class="o">+</span> <span class="n">bytesRead</span><span class="o">);</span>
+</span><span class="line">			<span class="n">buf</span><span class="o">.</span><span class="na">flip</span><span class="o">();</span>
+</span><span class="line">			<span class="k">while</span><span class="o">(</span><span class="n">buf</span><span class="o">.</span><span class="na">hasRemaining</span><span class="o">())</span>
+</span><span class="line">			<span class="o">{</span>
+</span><span class="line">				<span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">print</span><span class="o">(</span> <span class="o">(</span><span class="kt">char</span><span class="o">)</span><span class="n">buf</span><span class="o">.</span><span class="na">get</span><span class="o">());</span>
+</span><span class="line">			<span class="o">}</span>
+</span><span class="line">		
+</span><span class="line">			<span class="n">buf</span><span class="o">.</span><span class="na">clear</span><span class="o">();</span>
+</span><span class="line">			<span class="n">bytesRead</span> <span class="o">=</span> <span class="n">inChannel</span><span class="o">.</span><span class="na">read</span><span class="o">(</span><span class="n">buf</span><span class="o">);</span>
+</span><span class="line">		<span class="o">}</span>
+</span><span class="line">		<span class="n">aFile</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+</span><span class="line">	<span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>注意 buf.flip() 的调用，首先读取数据到Buffer，然后反转Buffer,接着再从Buffer中读取数据。下一节会深入讲解Buffer的更多细节。</p>
+</div>
+
+
+<div class="meta">
+	<div class="date">
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-06-10T13:08:00+08:00" pubdate data-updated="true">Jun 10<span>th</span>, 2013</time></div>
+	<div class="tags">
+
+
+	<a class='category' href='/blog/categories/javanio/'>JavaNIO</a>
+
+
+</div>
+	
+</div>
+</article>
+
+	<div class="share">
+	<div class="addthis_toolbox addthis_default_style ">
+		
+		
+		<a class="addthis_button_tweet"></a>
+		
+		
+		
+	</div>
+	
+</div>
+
+
+</div>
+	<footer id="footer" class="inner">Copyright &copy; 2014
+
+    Wuyexiong
+
+</footer>
+	<script src="/javascripts/slash.js"></script>
+<script src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+	$('.fancybox').fancybox();
+})(jQuery);
+</script> <!-- Delete or comment this line to disable Fancybox -->
+
+
+
+
+	<script type="text/javascript">
+		var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-53546404-1']);
+    _gaq.push(['_setDomainName','github.io']);
+    _gaq.push(['_trackPageview']);
+
+		(function() {
+			var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+			ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+			var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+		})();
+	</script>
+
+
+
+</body>
+</html>

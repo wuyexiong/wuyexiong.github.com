@@ -1,0 +1,744 @@
+
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Android Fragment 之间的通讯处理 - Wuyexiong de Blog</title>
+	<meta name="author" content="Wuyexiong">
+
+	
+	<meta name="description" content="上集回顾
+上一次已经有结果了，有三种通讯方式
+文章连接:Click Me 1.使用接口,让Activity扮演管理角色,负责分发消息到该窗口的子View 2.使用LocalBroadcastManager + IntentFilter解决不同组件通讯,Intent负责搭载数据 3.EventBus &hellip;">
+	
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<link href="/atom.xml" rel="alternate" title="Wuyexiong de Blog" type="application/atom+xml">
+	<link rel="canonical" href="">
+	<link href="/favicon.png" rel="shortcut icon">
+	<link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+	<!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+	<script async="true" src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+	
+</head>
+
+
+<body>
+	<header id="header" class="inner"><h1><a href="/blog/">Wuyexiong de Blog</a></h1>
+<nav id="main-nav"><ul class="main">
+	<li><a href="/blog/">Blog</a></li>
+	<li><a href="/blog/archives">Archives</a></li>
+	<li><a href="/">简历</a></li>
+</ul>
+</nav>
+<nav id="mobile-nav">
+	<div class="alignleft menu">
+		<a class="button">Menu</a>
+		<div class="container"><ul class="main">
+	<li><a href="/blog/">Blog</a></li>
+	<li><a href="/blog/archives">Archives</a></li>
+	<li><a href="/">简历</a></li>
+</ul>
+</div>
+	</div>
+	<div class="alignright search">
+		<a class="button"></a>
+		<div class="container">
+			<form action="http://google.com/search" method="get">
+				<input type="text" name="q" results="0">
+				<input type="hidden" name="q" value="site:wuyexiong.github.io">
+			</form>
+		</div>
+	</div>
+</nav>
+<nav id="sub-nav" class="alignright">
+	<div class="social">
+		
+		
+		
+		<a class="twitter" href="http://twitter.com/wuyexiong" title="Twitter">Twitter</a>
+		
+		
+		<a class="github" href="https://github.com/wuyexiong" title="GitHub">GitHub</a>
+		
+    
+		
+		
+		
+		
+		
+		<a class="rss" href="/atom.xml" title="RSS">RSS</a>
+		
+    
+	</div>
+	<form class="search" action="http://google.com/search" method="get">
+		<input class="alignright" type="text" name="q" results="0">
+		<input type="hidden" name="q" value="site:wuyexiong.github.io">
+	</form>
+</nav>
+
+</header>
+	
+		
+	
+	<div id="content" class="inner"><article class="post">
+	<h2 class="title">Android Fragment 之间的通讯处理</h2>
+	<div class="entry-content"><h1 id="section">上集回顾</h1>
+<p>上一次已经有结果了，有三种通讯方式<br />
+文章连接:<a href="http://wuyexiong.github.io/blog/2013/04/30/android-fragment/">Click Me</a></p>
+
+<p>1.使用接口,让Activity扮演管理角色,负责分发消息到该窗口的子View</p>
+
+<p>2.使用LocalBroadcastManager + IntentFilter解决不同组件通讯,Intent负责搭载数据</p>
+
+<p>3.EventBus </p>
+
+<p>4.otto 这里不做介绍，下面有demo链接，基于注解的解偶通信组件</p>
+
+<p>其实按照MVC的思想，Activity就真正的变成了Controler，<br />
+Activity中不涉及任何的业务逻辑的代码，只负责分发消息到不同的子View(Fragment)。 <br />
+如果希望整个应用只有一个Activity，就需要再抽象出一层Controller，负责处理Activity与其子Controller的通讯 </p>
+
+<h2 id="section-1">相关下载</h2>
+
+<ul>
+  <li><a href="https://github.com/greenrobot/EventBus">EventBus项目托管</a></li>
+  <li><a href="http://pan.baidu.com/share/link?shareid=440866&amp;uk=2030412954">EventBus-PPT</a></li>
+  <li>[otto项目托管](<a href="https://github.com/square/otto">https://github.com/square/otto</a></li>
+  <li><a href="http://www.subsis.dk/24/otto-for-android">otto-demo</a></li>
+</ul>
+
+<h2 id="section-2">项目</h2>
+
+<p>我们直接看代码吧，因为表达能力还训练，加上有点懒 ^_^ 😄<br />
+项目结构<br />
+<img class="[eclipse-project]" src="/images/20130430-android-fragment-communication/eclipse-project.png" />
+<!-- more -->
+###首先是布局de代码
+ - <code>/layout/article_view.xml</code> ** ArticleFragment.java ** 关联的布局</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+</pre></td><td class="code"><pre><code class="xml"><span class="line"><span class="cp">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;</span>
+</span><span class="line"><span class="nt">&lt;TextView</span> <span class="na">xmlns:android=</span><span class="s">&quot;http://schemas.android.com/apk/res/android&quot;</span>
+</span><span class="line">    <span class="na">android:id=</span><span class="s">&quot;@+id/article&quot;</span>
+</span><span class="line">    <span class="na">android:layout_width=</span><span class="s">&quot;match_parent&quot;</span>
+</span><span class="line">    <span class="na">android:layout_height=</span><span class="s">&quot;match_parent&quot;</span>
+</span><span class="line">    <span class="na">android:padding=</span><span class="s">&quot;16dp&quot;</span>
+</span><span class="line">    <span class="na">android:textSize=</span><span class="s">&quot;18sp&quot;</span> <span class="nt">&gt;</span>
+</span><span class="line"><span class="nt">&lt;/TextView&gt;</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<ul>
+  <li><code>/layout/news_articles.xml</code> ** HeadlinesFragment.java ** 关联的布局</li>
+</ul>
+
+<div class="bogus-wrapper"><notextile><figure class="code"> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+</pre></td><td class="code"><pre><code class="xml"><span class="line"><span class="cp">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;</span>
+</span><span class="line"><span class="nt">&lt;FrameLayout</span> <span class="na">xmlns:android=</span><span class="s">&quot;http://schemas.android.com/apk/res/android&quot;</span>
+</span><span class="line">    <span class="na">android:id=</span><span class="s">&quot;@+id/fragment_container&quot;</span>
+</span><span class="line">    <span class="na">android:layout_width=</span><span class="s">&quot;match_parent&quot;</span>
+</span><span class="line">    <span class="na">android:layout_height=</span><span class="s">&quot;match_parent&quot;</span> <span class="nt">&gt;</span>
+</span><span class="line"><span class="nt">&lt;/FrameLayout&gt;</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<ul>
+  <li><code>/layout-large/new_articles.xml</code> ** HeadlinesFragment.java ** 关联的布局，在平板大分辨率的时候回被自动启用  </li>
+</ul>
+
+<div class="bogus-wrapper"><notextile><figure class="code"> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+</pre></td><td class="code"><pre><code class="xml"><span class="line"><span class="cp">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;</span>
+</span><span class="line"><span class="nt">&lt;LinearLayout</span> <span class="na">xmlns:android=</span><span class="s">&quot;http://schemas.android.com/apk/res/android&quot;</span>
+</span><span class="line">    <span class="na">android:layout_width=</span><span class="s">&quot;match_parent&quot;</span>
+</span><span class="line">    <span class="na">android:layout_height=</span><span class="s">&quot;match_parent&quot;</span>
+</span><span class="line">    <span class="na">android:orientation=</span><span class="s">&quot;horizontal&quot;</span> <span class="nt">&gt;</span>
+</span><span class="line">
+</span><span class="line">    <span class="nt">&lt;fragment</span>
+</span><span class="line">        <span class="na">android:id=</span><span class="s">&quot;@+id/headlines_fragment&quot;</span>
+</span><span class="line">        <span class="na">android:name=</span><span class="s">&quot;tree.love.android.fragments.HeadlinesFragment&quot;</span>
+</span><span class="line">        <span class="na">android:layout_width=</span><span class="s">&quot;0dp&quot;</span>
+</span><span class="line">        <span class="na">android:layout_height=</span><span class="s">&quot;match_parent&quot;</span>
+</span><span class="line">        <span class="na">android:layout_weight=</span><span class="s">&quot;1&quot;</span> <span class="nt">/&gt;</span>
+</span><span class="line">
+</span><span class="line">    <span class="nt">&lt;fragment</span>
+</span><span class="line">        <span class="na">android:id=</span><span class="s">&quot;@+id/article_fragment&quot;</span>
+</span><span class="line">        <span class="na">android:name=</span><span class="s">&quot;tree.love.android.fragments.ArticleFragment&quot;</span>
+</span><span class="line">        <span class="na">android:layout_width=</span><span class="s">&quot;0dp&quot;</span>
+</span><span class="line">        <span class="na">android:layout_height=</span><span class="s">&quot;match_parent&quot;</span>
+</span><span class="line">        <span class="na">android:layout_weight=</span><span class="s">&quot;2&quot;</span> <span class="nt">/&gt;</span>
+</span><span class="line">
+</span><span class="line"><span class="nt">&lt;/LinearLayout&gt;</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<ul>
+  <li><code>MainActivity.java</code> 首页 -_- 其实就那么一页  哈哈哈  </li>
+</ul>
+
+<div class="bogus-wrapper"><notextile><figure class="code"> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+<span class="line-number">27</span>
+<span class="line-number">28</span>
+<span class="line-number">29</span>
+<span class="line-number">30</span>
+<span class="line-number">31</span>
+<span class="line-number">32</span>
+<span class="line-number">33</span>
+<span class="line-number">34</span>
+<span class="line-number">35</span>
+<span class="line-number">36</span>
+<span class="line-number">37</span>
+<span class="line-number">38</span>
+<span class="line-number">39</span>
+<span class="line-number">40</span>
+<span class="line-number">41</span>
+<span class="line-number">42</span>
+<span class="line-number">43</span>
+<span class="line-number">44</span>
+<span class="line-number">45</span>
+<span class="line-number">46</span>
+<span class="line-number">47</span>
+<span class="line-number">48</span>
+<span class="line-number">49</span>
+<span class="line-number">50</span>
+<span class="line-number">51</span>
+<span class="line-number">52</span>
+<span class="line-number">53</span>
+<span class="line-number">54</span>
+<span class="line-number">55</span>
+<span class="line-number">56</span>
+<span class="line-number">57</span>
+<span class="line-number">58</span>
+<span class="line-number">59</span>
+<span class="line-number">60</span>
+<span class="line-number">61</span>
+<span class="line-number">62</span>
+<span class="line-number">63</span>
+<span class="line-number">64</span>
+<span class="line-number">65</span>
+<span class="line-number">66</span>
+<span class="line-number">67</span>
+<span class="line-number">68</span>
+<span class="line-number">69</span>
+<span class="line-number">70</span>
+<span class="line-number">71</span>
+<span class="line-number">72</span>
+<span class="line-number">73</span>
+<span class="line-number">74</span>
+<span class="line-number">75</span>
+<span class="line-number">76</span>
+<span class="line-number">77</span>
+<span class="line-number">78</span>
+<span class="line-number">79</span>
+<span class="line-number">80</span>
+<span class="line-number">81</span>
+<span class="line-number">82</span>
+<span class="line-number">83</span>
+<span class="line-number">84</span>
+<span class="line-number">85</span>
+<span class="line-number">86</span>
+<span class="line-number">87</span>
+<span class="line-number">88</span>
+<span class="line-number">89</span>
+<span class="line-number">90</span>
+<span class="line-number">91</span>
+<span class="line-number">92</span>
+<span class="line-number">93</span>
+<span class="line-number">94</span>
+<span class="line-number">95</span>
+<span class="line-number">96</span>
+<span class="line-number">97</span>
+<span class="line-number">98</span>
+<span class="line-number">99</span>
+<span class="line-number">100</span>
+<span class="line-number">101</span>
+<span class="line-number">102</span>
+<span class="line-number">103</span>
+<span class="line-number">104</span>
+<span class="line-number">105</span>
+<span class="line-number">106</span>
+<span class="line-number">107</span>
+<span class="line-number">108</span>
+<span class="line-number">109</span>
+<span class="line-number">110</span>
+<span class="line-number">111</span>
+<span class="line-number">112</span>
+<span class="line-number">113</span>
+<span class="line-number">114</span>
+</pre></td><td class="code"><pre><code class="java"><span class="line"><span class="kd">public</span> <span class="kd">class</span> <span class="nc">MainActivity</span> <span class="kd">extends</span> <span class="n">FragmentActivity</span>  <span class="kd">implements</span> <span class="n">HeadlinesFragment</span><span class="o">.</span><span class="na">OnHeadlineSelectedListener</span> <span class="o">{</span>
+</span><span class="line">	
+</span><span class="line">	<span class="kd">private</span> <span class="kd">static</span> <span class="kd">final</span> <span class="n">String</span> <span class="n">TAG</span> <span class="o">=</span> <span class="s">&quot;MainActivity&quot;</span><span class="o">;</span>
+</span><span class="line">
+</span><span class="line">	<span class="kd">private</span> <span class="n">LocalBroadcastManager</span> <span class="n">mBroadcastManager</span><span class="o">;</span>
+</span><span class="line">	<span class="kd">private</span> <span class="n">BroadcastReceiver</span> <span class="n">mItemViewListClickReceiver</span><span class="o">;</span>
+</span><span class="line">	
+</span><span class="line">	<span class="kd">public</span> <span class="kd">static</span> <span class="kd">final</span> <span class="n">String</span> <span class="n">ACTION_ITEMVIEW_LISTCLICK</span> <span class="o">=</span> <span class="s">&quot;tree.love.android.fragments.itemview.listclick&quot;</span><span class="o">;</span>
+</span><span class="line">	
+</span><span class="line">    <span class="nd">@Override</span>
+</span><span class="line">    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onCreate</span><span class="o">(</span><span class="n">Bundle</span> <span class="n">savedInstanceState</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">        <span class="kd">super</span><span class="o">.</span><span class="na">onCreate</span><span class="o">(</span><span class="n">savedInstanceState</span><span class="o">);</span>
+</span><span class="line">        <span class="n">setContentView</span><span class="o">(</span><span class="n">R</span><span class="o">.</span><span class="na">layout</span><span class="o">.</span><span class="na">news_articles</span><span class="o">);</span>
+</span><span class="line">        <span class="c1">//如果是手机分辨率布局</span>
+</span><span class="line">        <span class="k">if</span> <span class="o">(</span><span class="n">findViewById</span><span class="o">(</span><span class="n">R</span><span class="o">.</span><span class="na">id</span><span class="o">.</span><span class="na">fragment_container</span><span class="o">)</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">
+</span><span class="line">        	<span class="c1">// 如果之前保存了状态,我们不需要做任何事情,否则会重复加载Fragment</span>
+</span><span class="line">            <span class="k">if</span> <span class="o">(</span><span class="n">savedInstanceState</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">                <span class="k">return</span><span class="o">;</span>
+</span><span class="line">            <span class="o">}</span>
+</span><span class="line">            <span class="c1">// Create an instance of ExampleFragment</span>
+</span><span class="line">            <span class="n">HeadlinesFragment</span> <span class="n">firstFragment</span> <span class="o">=</span> <span class="k">new</span> <span class="n">HeadlinesFragment</span><span class="o">();</span>
+</span><span class="line">
+</span><span class="line">            <span class="c1">//如果这个Activity被一个特殊的Intent传递,如果有需要,把该数据也传给Fragment</span>
+</span><span class="line">            <span class="n">firstFragment</span><span class="o">.</span><span class="na">setArguments</span><span class="o">(</span><span class="n">getIntent</span><span class="o">().</span><span class="na">getExtras</span><span class="o">());</span>
+</span><span class="line">
+</span><span class="line">            <span class="c1">// 添加该Fragment到R.id.fragment_container这个容器布局中</span>
+</span><span class="line">            <span class="n">getSupportFragmentManager</span><span class="o">().</span><span class="na">beginTransaction</span><span class="o">()</span>
+</span><span class="line">                    <span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">R</span><span class="o">.</span><span class="na">id</span><span class="o">.</span><span class="na">fragment_container</span><span class="o">,</span> <span class="n">firstFragment</span><span class="o">).</span><span class="na">commit</span><span class="o">();</span>
+</span><span class="line">        <span class="o">}</span>
+</span><span class="line">    <span class="o">}</span>
+</span><span class="line">
+</span><span class="line">	<span class="kd">private</span> <span class="kt">void</span> <span class="nf">initBroadcastListener</span><span class="o">()</span> <span class="o">{</span>
+</span><span class="line">		<span class="n">mBroadcastManager</span> <span class="o">=</span> <span class="n">LocalBroadcastManager</span><span class="o">.</span><span class="na">getInstance</span><span class="o">(</span><span class="k">this</span><span class="o">);</span>
+</span><span class="line">        <span class="n">IntentFilter</span> <span class="n">intentFilter</span> <span class="o">=</span> <span class="k">new</span> <span class="n">IntentFilter</span><span class="o">();</span>
+</span><span class="line">        <span class="n">intentFilter</span><span class="o">.</span><span class="na">addAction</span><span class="o">(</span><span class="n">ACTION_ITEMVIEW_LISTCLICK</span><span class="o">);</span>
+</span><span class="line">        <span class="n">mItemViewListClickReceiver</span> <span class="o">=</span> <span class="k">new</span> <span class="n">BroadcastReceiver</span><span class="o">()</span>
+</span><span class="line">		<span class="o">{</span>
+</span><span class="line">			<span class="nd">@Override</span>
+</span><span class="line">			<span class="kd">public</span> <span class="kt">void</span> <span class="nf">onReceive</span><span class="o">(</span><span class="n">Context</span> <span class="n">context</span><span class="o">,</span> <span class="n">Intent</span> <span class="n">intent</span><span class="o">)</span>
+</span><span class="line">			<span class="o">{</span>
+</span><span class="line">				<span class="k">if</span><span class="o">(</span><span class="n">intent</span><span class="o">.</span><span class="na">getAction</span><span class="o">().</span><span class="na">equals</span><span class="o">(</span><span class="n">ACTION_ITEMVIEW_LISTCLICK</span><span class="o">))</span>
+</span><span class="line">				<span class="o">{</span>
+</span><span class="line">					<span class="n">Log</span><span class="o">.</span><span class="na">v</span><span class="o">(</span><span class="n">TAG</span><span class="o">,</span> <span class="n">ACTION_ITEMVIEW_LISTCLICK</span> <span class="o">+</span> <span class="s">&quot;,&quot;</span> <span class="o">+</span> <span class="n">intent</span><span class="o">.</span><span class="na">getIntExtra</span><span class="o">(</span><span class="s">&quot;position&quot;</span><span class="o">,</span> <span class="o">-</span><span class="mi">1</span><span class="o">));</span>
+</span><span class="line">				<span class="o">}</span>
+</span><span class="line">			<span class="o">}</span>
+</span><span class="line">		<span class="o">};</span>
+</span><span class="line">        <span class="n">mBroadcastManager</span><span class="o">.</span><span class="na">registerReceiver</span><span class="o">(</span><span class="n">mItemViewListClickReceiver</span><span class="o">,</span> <span class="n">intentFilter</span><span class="o">);</span>
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">
+</span><span class="line">    <span class="cm">/* </span>
+</span><span class="line"><span class="cm">     * 实现HeadlinesFragment.OnHeadlineSelectedListener中的ListView点击事件的回调接口</span>
+</span><span class="line"><span class="cm">     */</span>
+</span><span class="line">    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onArticleSelected</span><span class="o">(</span><span class="kt">int</span> <span class="n">position</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">
+</span><span class="line">        <span class="c1">// 获取当前Activity是否已经加载了ArticleFragment</span>
+</span><span class="line">        <span class="n">ArticleFragment</span> <span class="n">articleFrag</span> <span class="o">=</span> <span class="o">(</span><span class="n">ArticleFragment</span><span class="o">)</span>
+</span><span class="line">                <span class="n">getSupportFragmentManager</span><span class="o">().</span><span class="na">findFragmentById</span><span class="o">(</span><span class="n">R</span><span class="o">.</span><span class="na">id</span><span class="o">.</span><span class="na">article_fragment</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">        <span class="k">if</span> <span class="o">(</span><span class="n">articleFrag</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">        	<span class="c1">//如果进到这里,说明我们正在使用大屏幕布局/.</span>
+</span><span class="line">        	<span class="c1">//直接更新ArticleFragment的布局</span>
+</span><span class="line">            <span class="n">articleFrag</span><span class="o">.</span><span class="na">updateArticleView</span><span class="o">(</span><span class="n">position</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">        <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+</span><span class="line">            <span class="c1">// 我们正在使用小屏幕布局</span>
+</span><span class="line">            <span class="c1">// 创建Fragment,并且传递参数</span>
+</span><span class="line">            <span class="n">ArticleFragment</span> <span class="n">newFragment</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ArticleFragment</span><span class="o">();</span>
+</span><span class="line">            <span class="n">Bundle</span> <span class="n">args</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Bundle</span><span class="o">();</span>
+</span><span class="line">            <span class="n">args</span><span class="o">.</span><span class="na">putInt</span><span class="o">(</span><span class="n">ArticleFragment</span><span class="o">.</span><span class="na">ARG_POSITION</span><span class="o">,</span> <span class="n">position</span><span class="o">);</span>
+</span><span class="line">            <span class="n">newFragment</span><span class="o">.</span><span class="na">setArguments</span><span class="o">(</span><span class="n">args</span><span class="o">);</span>
+</span><span class="line">            <span class="n">FragmentTransaction</span> <span class="n">transaction</span> <span class="o">=</span> <span class="n">getSupportFragmentManager</span><span class="o">().</span><span class="na">beginTransaction</span><span class="o">();</span>
+</span><span class="line">
+</span><span class="line">            <span class="c1">//可定制Fragment的退出和进入动画 , 设置在replace or add之前</span>
+</span><span class="line">            <span class="n">transaction</span><span class="o">.</span><span class="na">setCustomAnimations</span><span class="o">(</span><span class="n">android</span><span class="o">.</span><span class="na">R</span><span class="o">.</span><span class="na">anim</span><span class="o">.</span><span class="na">fade_in</span><span class="o">,</span> <span class="n">android</span><span class="o">.</span><span class="na">R</span><span class="o">.</span><span class="na">anim</span><span class="o">.</span><span class="na">fade_out</span><span class="o">,</span> <span class="n">android</span><span class="o">.</span><span class="na">R</span><span class="o">.</span><span class="na">anim</span><span class="o">.</span><span class="na">fade_in</span><span class="o">,</span> <span class="n">android</span><span class="o">.</span><span class="na">R</span><span class="o">.</span><span class="na">anim</span><span class="o">.</span><span class="na">fade_out</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">            <span class="c1">// 替换R.id.fragment_container容器布局中的View</span>
+</span><span class="line">            <span class="n">transaction</span><span class="o">.</span><span class="na">replace</span><span class="o">(</span><span class="n">R</span><span class="o">.</span><span class="na">id</span><span class="o">.</span><span class="na">fragment_container</span><span class="o">,</span> <span class="n">newFragment</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">            <span class="c1">// 添加事物回退栈,让系统管理,当用户点击返回按钮时,销毁当前加载到容器布局中的ArticleFragment</span>
+</span><span class="line">            <span class="n">transaction</span><span class="o">.</span><span class="na">addToBackStack</span><span class="o">(</span><span class="kc">null</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">            <span class="c1">// 提交事物...不然你永远看不到ArticleFragment的出现 ^_^</span>
+</span><span class="line">            <span class="n">transaction</span><span class="o">.</span><span class="na">commit</span><span class="o">();</span>
+</span><span class="line">        <span class="o">}</span>
+</span><span class="line">    <span class="o">}</span>
+</span><span class="line">
+</span><span class="line">    <span class="cm">/**</span>
+</span><span class="line"><span class="cm">     * EventBus事件回掉</span>
+</span><span class="line"><span class="cm">     * @param event</span>
+</span><span class="line"><span class="cm">     */</span>
+</span><span class="line">    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onEvent</span><span class="o">(</span><span class="n">ListClickEvent</span> <span class="n">event</span><span class="o">)</span>
+</span><span class="line">    <span class="o">{</span>
+</span><span class="line">    	<span class="n">Log</span><span class="o">.</span><span class="na">v</span><span class="o">(</span><span class="s">&quot;&quot;</span><span class="o">,</span> <span class="s">&quot;onEvent position:&quot;</span> <span class="o">+</span> <span class="n">event</span><span class="o">.</span><span class="na">getPosition</span><span class="o">());</span>
+</span><span class="line">    <span class="o">}</span>
+</span><span class="line">
+</span><span class="line">    <span class="nd">@Override</span>
+</span><span class="line">    <span class="kd">protected</span> <span class="kt">void</span> <span class="nf">onStart</span><span class="o">()</span> <span class="o">{</span>
+</span><span class="line">    	<span class="kd">super</span><span class="o">.</span><span class="na">onStart</span><span class="o">();</span>
+</span><span class="line">    	<span class="c1">//在需要接收事件通知的类添加到EventBus</span>
+</span><span class="line">        <span class="n">EventBus</span><span class="o">.</span><span class="na">getDefault</span><span class="o">().</span><span class="na">register</span><span class="o">(</span><span class="k">this</span><span class="o">);</span>
+</span><span class="line">        <span class="c1">//注册Receiver</span>
+</span><span class="line">        <span class="n">initBroadcastListener</span><span class="o">();</span>
+</span><span class="line">    <span class="o">}</span>
+</span><span class="line">
+</span><span class="line">    <span class="nd">@Override</span>
+</span><span class="line">    <span class="kd">protected</span> <span class="kt">void</span> <span class="nf">onPause</span><span class="o">()</span>
+</span><span class="line">    <span class="o">{</span>
+</span><span class="line">    	<span class="kd">super</span><span class="o">.</span><span class="na">onPause</span><span class="o">();</span>
+</span><span class="line">    	<span class="c1">//取消事件监听</span>
+</span><span class="line">    	<span class="n">EventBus</span><span class="o">.</span><span class="na">getDefault</span><span class="o">().</span><span class="na">unregister</span><span class="o">(</span><span class="k">this</span><span class="o">);</span>
+</span><span class="line">    	<span class="n">mBroadcastManager</span><span class="o">.</span><span class="na">unregisterReceiver</span><span class="o">(</span><span class="n">mItemViewListClickReceiver</span><span class="o">);</span>
+</span><span class="line">    <span class="o">}</span>
+</span><span class="line"><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<ul>
+  <li><code>HeadlinesFragment.java</code> ListView菜单布局</li>
+</ul>
+
+<div class="bogus-wrapper"><notextile><figure class="code"> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+<span class="line-number">27</span>
+<span class="line-number">28</span>
+<span class="line-number">29</span>
+<span class="line-number">30</span>
+<span class="line-number">31</span>
+<span class="line-number">32</span>
+<span class="line-number">33</span>
+<span class="line-number">34</span>
+<span class="line-number">35</span>
+<span class="line-number">36</span>
+<span class="line-number">37</span>
+<span class="line-number">38</span>
+<span class="line-number">39</span>
+<span class="line-number">40</span>
+<span class="line-number">41</span>
+<span class="line-number">42</span>
+<span class="line-number">43</span>
+<span class="line-number">44</span>
+<span class="line-number">45</span>
+<span class="line-number">46</span>
+<span class="line-number">47</span>
+<span class="line-number">48</span>
+<span class="line-number">49</span>
+<span class="line-number">50</span>
+<span class="line-number">51</span>
+<span class="line-number">52</span>
+<span class="line-number">53</span>
+<span class="line-number">54</span>
+<span class="line-number">55</span>
+</pre></td><td class="code"><pre><code class="java"><span class="line"> <span class="kd">public</span> <span class="kd">class</span> <span class="nc">HeadlinesFragment</span> <span class="kd">extends</span> <span class="n">ListFragment</span> <span class="o">{</span>
+</span><span class="line">    <span class="n">OnHeadlineSelectedListener</span> <span class="n">mCallback</span><span class="o">;</span>
+</span><span class="line">
+</span><span class="line">    <span class="c1">// 通讯接口, 加载该Fragment的容器Activity必须实现此接口可以接收ListView的点击消息</span>
+</span><span class="line">    <span class="kd">public</span> <span class="kd">interface</span> <span class="nc">OnHeadlineSelectedListener</span> <span class="o">{</span>
+</span><span class="line">        <span class="cm">/** 当HeadlinesFragment中的ListView点击的时候触发 */</span>
+</span><span class="line">        <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onArticleSelected</span><span class="o">(</span><span class="kt">int</span> <span class="n">position</span><span class="o">);</span>
+</span><span class="line">    <span class="o">}</span>
+</span><span class="line">
+</span><span class="line">    <span class="nd">@Override</span>
+</span><span class="line">    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onCreate</span><span class="o">(</span><span class="n">Bundle</span> <span class="n">savedInstanceState</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">        <span class="kd">super</span><span class="o">.</span><span class="na">onCreate</span><span class="o">(</span><span class="n">savedInstanceState</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">        <span class="kt">int</span> <span class="n">layout</span> <span class="o">=</span> <span class="n">Build</span><span class="o">.</span><span class="na">VERSION</span><span class="o">.</span><span class="na">SDK_INT</span> <span class="o">&gt;=</span> <span class="n">Build</span><span class="o">.</span><span class="na">VERSION_CODES</span><span class="o">.</span><span class="na">HONEYCOMB</span> <span class="o">?</span> <span class="n">android</span><span class="o">.</span><span class="na">R</span><span class="o">.</span><span class="na">layout</span><span class="o">.</span><span class="na">simple_list_item_activated_1</span> <span class="o">:</span> <span class="n">android</span><span class="o">.</span><span class="na">R</span><span class="o">.</span><span class="na">layout</span><span class="o">.</span><span class="na">simple_list_item_1</span><span class="o">;</span>
+</span><span class="line">        <span class="n">setListAdapter</span><span class="o">(</span><span class="k">new</span> <span class="n">ArrayAdapter</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;(</span><span class="n">getActivity</span><span class="o">(),</span> <span class="n">layout</span><span class="o">,</span> <span class="n">Ipsum</span><span class="o">.</span><span class="na">Headlines</span><span class="o">));</span>
+</span><span class="line">    <span class="o">}</span>
+</span><span class="line">
+</span><span class="line">    <span class="nd">@Override</span>
+</span><span class="line">    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onStart</span><span class="o">()</span> <span class="o">{</span>
+</span><span class="line">        <span class="kd">super</span><span class="o">.</span><span class="na">onStart</span><span class="o">();</span>
+</span><span class="line">
+</span><span class="line">        <span class="k">if</span> <span class="o">(</span><span class="n">getFragmentManager</span><span class="o">().</span><span class="na">findFragmentById</span><span class="o">(</span><span class="n">R</span><span class="o">.</span><span class="na">id</span><span class="o">.</span><span class="na">article_fragment</span><span class="o">)</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">            <span class="n">getListView</span><span class="o">().</span><span class="na">setChoiceMode</span><span class="o">(</span><span class="n">ListView</span><span class="o">.</span><span class="na">CHOICE_MODE_SINGLE</span><span class="o">);</span>
+</span><span class="line">        <span class="o">}</span>
+</span><span class="line">    <span class="o">}</span>
+</span><span class="line">
+</span><span class="line">    <span class="nd">@Override</span>
+</span><span class="line">    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onAttach</span><span class="o">(</span><span class="n">Activity</span> <span class="n">activity</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">        <span class="kd">super</span><span class="o">.</span><span class="na">onAttach</span><span class="o">(</span><span class="n">activity</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">        <span class="c1">// 保证容器Activity实现了回调接口 否则抛出异常警告</span>
+</span><span class="line">        <span class="k">try</span> <span class="o">{</span>
+</span><span class="line">            <span class="n">mCallback</span> <span class="o">=</span> <span class="o">(</span><span class="n">OnHeadlineSelectedListener</span><span class="o">)</span> <span class="n">activity</span><span class="o">;</span>
+</span><span class="line">        <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">ClassCastException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">            <span class="k">throw</span> <span class="k">new</span> <span class="nf">ClassCastException</span><span class="o">(</span><span class="n">activity</span><span class="o">.</span><span class="na">toString</span><span class="o">()</span>  <span class="o">+</span> <span class="s">&quot; must implement OnHeadlineSelectedListener&quot;</span><span class="o">);</span>
+</span><span class="line">        <span class="o">}</span>
+</span><span class="line">    <span class="o">}</span>
+</span><span class="line">
+</span><span class="line">    <span class="nd">@Override</span>
+</span><span class="line">    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onListItemClick</span><span class="o">(</span><span class="n">ListView</span> <span class="n">l</span><span class="o">,</span> <span class="n">View</span> <span class="n">v</span><span class="o">,</span> <span class="kt">int</span> <span class="n">position</span><span class="o">,</span> <span class="kt">long</span> <span class="n">id</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">        <span class="c1">//1.通讯方式1  接口通知Activity</span>
+</span><span class="line">        <span class="n">mCallback</span><span class="o">.</span><span class="na">onArticleSelected</span><span class="o">(</span><span class="n">position</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">        <span class="c1">//2.通讯方式2  发送广播</span>
+</span><span class="line">        <span class="n">Intent</span> <span class="n">intent</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Intent</span><span class="o">(</span><span class="n">MainActivity</span><span class="o">.</span><span class="na">ACTION_ITEMVIEW_LISTCLICK</span><span class="o">);</span>
+</span><span class="line">        <span class="n">intent</span><span class="o">.</span><span class="na">putExtra</span><span class="o">(</span><span class="s">&quot;position&quot;</span><span class="o">,</span> <span class="n">position</span><span class="o">);</span>
+</span><span class="line">        <span class="n">LocalBroadcastManager</span><span class="o">.</span><span class="na">getInstance</span><span class="o">(</span><span class="n">getActivity</span><span class="o">()).</span><span class="na">sendBroadcast</span><span class="o">(</span><span class="n">intent</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">        <span class="c1">//3.通讯方式3  发送事件到消息中心,由消息中心负责分发事件</span>
+</span><span class="line">        <span class="n">EventBus</span><span class="o">.</span><span class="na">getDefault</span><span class="o">().</span><span class="na">post</span><span class="o">(</span><span class="k">new</span> <span class="n">ListClickEvent</span><span class="o">(</span><span class="n">position</span><span class="o">));</span>
+</span><span class="line">
+</span><span class="line">        <span class="c1">// 大屏幕pad分辨率使用两个panel的时候设置</span>
+</span><span class="line">        <span class="n">getListView</span><span class="o">().</span><span class="na">setItemChecked</span><span class="o">(</span><span class="n">position</span><span class="o">,</span> <span class="kc">true</span><span class="o">);</span>
+</span><span class="line">    <span class="o">}</span>
+</span><span class="line"><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<ul>
+  <li><code>ArticleFragment.java</code> 详情页布局。。就一个TextView啦。</li>
+</ul>
+
+<div class="bogus-wrapper"><notextile><figure class="code"> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+<span class="line-number">27</span>
+<span class="line-number">28</span>
+<span class="line-number">29</span>
+<span class="line-number">30</span>
+<span class="line-number">31</span>
+<span class="line-number">32</span>
+<span class="line-number">33</span>
+<span class="line-number">34</span>
+<span class="line-number">35</span>
+<span class="line-number">36</span>
+<span class="line-number">37</span>
+<span class="line-number">38</span>
+<span class="line-number">39</span>
+<span class="line-number">40</span>
+<span class="line-number">41</span>
+<span class="line-number">42</span>
+<span class="line-number">43</span>
+<span class="line-number">44</span>
+<span class="line-number">45</span>
+<span class="line-number">46</span>
+<span class="line-number">47</span>
+<span class="line-number">48</span>
+<span class="line-number">49</span>
+<span class="line-number">50</span>
+<span class="line-number">51</span>
+<span class="line-number">52</span>
+<span class="line-number">53</span>
+<span class="line-number">54</span>
+<span class="line-number">55</span>
+</pre></td><td class="code"><pre><code class="java"><span class="line"> <span class="kd">public</span> <span class="kd">class</span> <span class="nc">ArticleFragment</span> <span class="kd">extends</span> <span class="n">Fragment</span> <span class="o">{</span>
+</span><span class="line">	
+</span><span class="line">    <span class="kd">final</span> <span class="kd">static</span> <span class="n">String</span> <span class="n">ARG_POSITION</span> <span class="o">=</span> <span class="s">&quot;position&quot;</span><span class="o">;</span>
+</span><span class="line">    <span class="kt">int</span> <span class="n">mCurrentPosition</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="o">;</span>
+</span><span class="line">
+</span><span class="line">    <span class="nd">@Override</span>
+</span><span class="line">    <span class="kd">public</span> <span class="n">View</span> <span class="nf">onCreateView</span><span class="o">(</span><span class="n">LayoutInflater</span> <span class="n">inflater</span><span class="o">,</span> <span class="n">ViewGroup</span> <span class="n">container</span><span class="o">,</span>
+</span><span class="line">        <span class="n">Bundle</span> <span class="n">savedInstanceState</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">
+</span><span class="line">    	<span class="c1">//回复在onSaveInstanceState中保存的是状态数据</span>
+</span><span class="line">        <span class="k">if</span> <span class="o">(</span><span class="n">savedInstanceState</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">            <span class="n">mCurrentPosition</span> <span class="o">=</span> <span class="n">savedInstanceState</span><span class="o">.</span><span class="na">getInt</span><span class="o">(</span><span class="n">ARG_POSITION</span><span class="o">);</span>
+</span><span class="line">        <span class="o">}</span>
+</span><span class="line">
+</span><span class="line">        <span class="k">return</span> <span class="n">inflater</span><span class="o">.</span><span class="na">inflate</span><span class="o">(</span><span class="n">R</span><span class="o">.</span><span class="na">layout</span><span class="o">.</span><span class="na">article_view</span><span class="o">,</span> <span class="n">container</span><span class="o">,</span> <span class="kc">false</span><span class="o">);</span>
+</span><span class="line">    <span class="o">}</span>
+</span><span class="line">
+</span><span class="line">    <span class="nd">@Override</span>
+</span><span class="line">    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onStart</span><span class="o">()</span> <span class="o">{</span>
+</span><span class="line">        <span class="kd">super</span><span class="o">.</span><span class="na">onStart</span><span class="o">();</span>
+</span><span class="line">
+</span><span class="line">        <span class="n">Bundle</span> <span class="n">args</span> <span class="o">=</span> <span class="n">getArguments</span><span class="o">();</span>
+</span><span class="line">        <span class="k">if</span> <span class="o">(</span><span class="n">args</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">            <span class="n">updateArticleView</span><span class="o">(</span><span class="n">args</span><span class="o">.</span><span class="na">getInt</span><span class="o">(</span><span class="n">ARG_POSITION</span><span class="o">));</span>
+</span><span class="line">        <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="n">mCurrentPosition</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">            <span class="n">updateArticleView</span><span class="o">(</span><span class="n">mCurrentPosition</span><span class="o">);</span>
+</span><span class="line">        <span class="o">}</span>
+</span><span class="line">
+</span><span class="line">        <span class="n">EventBus</span><span class="o">.</span><span class="na">getDefault</span><span class="o">().</span><span class="na">register</span><span class="o">(</span><span class="k">this</span><span class="o">);</span>
+</span><span class="line">    <span class="o">}</span>
+</span><span class="line">
+</span><span class="line">    <span class="nd">@Override</span>
+</span><span class="line">    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onPause</span><span class="o">()</span>
+</span><span class="line">    <span class="o">{</span>
+</span><span class="line">    	<span class="kd">super</span><span class="o">.</span><span class="na">onPause</span><span class="o">();</span>
+</span><span class="line">    	<span class="n">EventBus</span><span class="o">.</span><span class="na">getDefault</span><span class="o">().</span><span class="na">unregister</span><span class="o">(</span><span class="k">this</span><span class="o">);</span>
+</span><span class="line">    <span class="o">}</span>
+</span><span class="line">
+</span><span class="line">    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">updateArticleView</span><span class="o">(</span><span class="kt">int</span> <span class="n">position</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">        <span class="n">TextView</span> <span class="n">article</span> <span class="o">=</span> <span class="o">(</span><span class="n">TextView</span><span class="o">)</span> <span class="n">getActivity</span><span class="o">().</span><span class="na">findViewById</span><span class="o">(</span><span class="n">R</span><span class="o">.</span><span class="na">id</span><span class="o">.</span><span class="na">article</span><span class="o">);</span>
+</span><span class="line">        <span class="n">article</span><span class="o">.</span><span class="na">setText</span><span class="o">(</span><span class="n">Ipsum</span><span class="o">.</span><span class="na">Articles</span><span class="o">[</span><span class="n">position</span><span class="o">]);</span>
+</span><span class="line">        <span class="n">mCurrentPosition</span> <span class="o">=</span> <span class="n">position</span><span class="o">;</span>
+</span><span class="line">    <span class="o">}</span>
+</span><span class="line">
+</span><span class="line">    <span class="nd">@Override</span>
+</span><span class="line">    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onSaveInstanceState</span><span class="o">(</span><span class="n">Bundle</span> <span class="n">outState</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">        <span class="kd">super</span><span class="o">.</span><span class="na">onSaveInstanceState</span><span class="o">(</span><span class="n">outState</span><span class="o">);</span>
+</span><span class="line">        <span class="n">outState</span><span class="o">.</span><span class="na">putInt</span><span class="o">(</span><span class="n">ARG_POSITION</span><span class="o">,</span> <span class="n">mCurrentPosition</span><span class="o">);</span>
+</span><span class="line">    <span class="o">}</span>
+</span><span class="line">
+</span><span class="line">    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onEvent</span><span class="o">(</span><span class="n">ListClickEvent</span> <span class="n">event</span><span class="o">)</span>
+</span><span class="line">    <span class="o">{</span>
+</span><span class="line">    	<span class="n">Log</span><span class="o">.</span><span class="na">v</span><span class="o">(</span><span class="s">&quot;ArticleFragment&quot;</span><span class="o">,</span> <span class="s">&quot;onEvent&quot;</span> <span class="o">+</span> <span class="n">event</span><span class="o">.</span><span class="na">getPosition</span><span class="o">());</span>
+</span><span class="line">    <span class="o">}</span>
+</span><span class="line"><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+</div>
+
+
+<div class="meta">
+	<div class="date">
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-30T21:38:00+08:00" pubdate data-updated="true">Apr 30<span>th</span>, 2013</time></div>
+	<div class="tags">
+
+
+	<a class='category' href='/blog/categories/android/'>Android</a>
+
+
+</div>
+	
+</div>
+</article>
+
+	<div class="share">
+	<div class="addthis_toolbox addthis_default_style ">
+		
+		
+		<a class="addthis_button_tweet"></a>
+		
+		
+		
+	</div>
+	
+</div>
+
+
+</div>
+	<footer id="footer" class="inner">Copyright &copy; 2014
+
+    Wuyexiong
+
+</footer>
+	<script src="/javascripts/slash.js"></script>
+<script src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+	$('.fancybox').fancybox();
+})(jQuery);
+</script> <!-- Delete or comment this line to disable Fancybox -->
+
+
+
+
+	<script type="text/javascript">
+		var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-53546404-1']);
+    _gaq.push(['_setDomainName','github.io']);
+    _gaq.push(['_trackPageview']);
+
+		(function() {
+			var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+			ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+			var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+		})();
+	</script>
+
+
+
+</body>
+</html>

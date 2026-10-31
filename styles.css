@@ -774,6 +774,11 @@ a { color: inherit; }
 
 .site-footer p { margin: 0; }
 
+.footer-links {
+  display: flex;
+  gap: 18px;
+}
+
 .site-footer a {
   color: var(--ink);
   text-decoration: none;
